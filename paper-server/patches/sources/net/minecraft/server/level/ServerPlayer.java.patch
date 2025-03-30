@@ -316,7 +316,7 @@
                  }
  
                  float saturationLevel = this.foodData.getSaturationLevel();
-@@ -793,15 +_,89 @@
+@@ -793,15 +_,84 @@
      }
  
      private void updateScoreForCriteria(ObjectiveCriteria criteria, int points) {
@@ -326,31 +326,26 @@
 +    }
 +
 +    // Paper start - PlayerDeathEvent#getItemsToKeep
-+    private static void processKeep(org.bukkit.event.entity.PlayerDeathEvent event, List<ItemStack> items) {
-+        List<org.bukkit.inventory.ItemStack> itemsToKeep = event.getItemsToKeep();
-+        for (int i = 0; i < items.size(); ++i) {
-+            ItemStack item = items.get(i);
-+            if (EnchantmentHelper.has(item, net.minecraft.world.item.enchantment.EnchantmentEffectComponents.PREVENT_EQUIPMENT_DROP) || itemsToKeep.isEmpty() || item.isEmpty()) {
-+                items.set(i, ItemStack.EMPTY);
-+                continue;
-+            }
++    private static boolean shouldKeepDeathEventItem(
++        final org.bukkit.event.entity.PlayerDeathEvent event,
++        final ItemStack item
++    ) {
++        final List<org.bukkit.inventory.ItemStack> itemsToKeep = event.getItemsToKeep();
++        if (EnchantmentHelper.has(item, net.minecraft.world.item.enchantment.EnchantmentEffectComponents.PREVENT_EQUIPMENT_DROP) || itemsToKeep.isEmpty() || item.isEmpty()) {
++            return false;
++        }
 +
-+            final org.bukkit.inventory.ItemStack bukkitStack = item.getBukkitStack();
-+            boolean keep = false;
-+            final java.util.Iterator<org.bukkit.inventory.ItemStack> iterator = itemsToKeep.iterator();
-+            while (iterator.hasNext()) {
-+                final org.bukkit.inventory.ItemStack itemStack = iterator.next();
-+                if (bukkitStack.equals(itemStack)) {
-+                    iterator.remove();
-+                    keep = true;
-+                    break;
-+                }
-+            }
-+
-+            if (!keep) {
-+                items.set(i, ItemStack.EMPTY);
++        final org.bukkit.inventory.ItemStack bukkitStack = item.getBukkitStack();
++        final java.util.Iterator<org.bukkit.inventory.ItemStack> iterator = itemsToKeep.iterator();
++        while (iterator.hasNext()) {
++            final org.bukkit.inventory.ItemStack itemStack = iterator.next();
++            if (bukkitStack.equals(itemStack)) {
++                iterator.remove();
++                return true;
 +            }
 +        }
++
++        return false;
 +    }
 +    // Paper end - PlayerDeathEvent#getItemsToKeep
  
@@ -412,7 +407,7 @@
              this.connection
                  .send(
                      new ClientboundPlayerCombatKillPacket(this.getId(), deathMessage),
-@@ -835,11 +_,26 @@
+@@ -835,11 +_,35 @@
              this.tellNeutralMobsThatIDied();
          }
  
@@ -423,7 +418,16 @@
 +        // we clean the player's inventory after the EntityDeathEvent is called so plugins can get the exact state of the inventory.
 +        if (!event.getKeepInventory()) {
 +            // Paper start - PlayerDeathEvent#getItemsToKeep
-+            processKeep(event, this.getInventory().getContents());
++            for (int i = 0; i < this.getInventory().getNonEquipmentItems().size(); i++) {
++                if (!shouldKeepDeathEventItem(event, this.getInventory().getNonEquipmentItems().get(i))) {
++                    this.getInventory().getNonEquipmentItems().set(i, net.minecraft.world.item.ItemStack.EMPTY);
++                }
++            }
++            for (final EquipmentSlot value : EquipmentSlot.VALUES) {
++                if (this.getInventory().equipment.has(value) && !shouldKeepDeathEventItem(event, this.getInventory().equipment.get(value))) {
++                    this.getInventory().equipment.set(value, net.minecraft.world.item.ItemStack.EMPTY);
++                }
++            }
 +
 +            // remainder of items left in toKeep - plugin added stuff on death that wasn't in the initial loot?
 +            if (!event.getItemsToKeep().isEmpty()) {
@@ -1259,11 +1263,11 @@
      public void setRespawnPosition(@Nullable ServerPlayer.RespawnConfig respawnConfig, boolean displayInChat) {
 -        if (displayInChat && respawnConfig != null && !respawnConfig.isSamePosition(this.respawnConfig)) {
 -            this.sendSystemMessage(SPAWN_SET_MESSAGE);
-+    // Paper start - Add PlayerSetSpawnEvent
-+        setRespawnPosition(respawnConfig, displayInChat, com.destroystokyo.paper.event.player.PlayerSetSpawnEvent.Cause.UNKNOWN);
++        // Paper start - Add PlayerSetSpawnEvent
++        this.setRespawnPosition(respawnConfig, displayInChat, com.destroystokyo.paper.event.player.PlayerSetSpawnEvent.Cause.UNKNOWN);
 +    }
++
 +    public boolean setRespawnPosition(@Nullable ServerPlayer.RespawnConfig respawnConfig, boolean displayInChat, com.destroystokyo.paper.event.player.PlayerSetSpawnEvent.Cause cause) {
-+    // Paper end - Add PlayerSetSpawnEvent
 +        org.bukkit.Location spawnLoc = null;
 +        boolean actuallyDisplayInChat = false;
 +        if (respawnConfig != null) {
@@ -1287,7 +1291,7 @@
 +            dumbEvent.getNewSpawn(),
 +            dumbEvent.isForced(),
 +            actuallyDisplayInChat,
-+            actuallyDisplayInChat ? net.kyori.adventure.text.Component.translatable("block.minecraft.set_spawn") : null
++            actuallyDisplayInChat ? io.papermc.paper.adventure.PaperAdventure.asAdventure(SPAWN_SET_MESSAGE) : null
 +        );
 +        event.setCancelled(dumbEvent.isCancelled());
 +        if (!event.callEvent()) {
@@ -1301,8 +1305,8 @@
 +                event.getLocation().getYaw(),
 +                event.isForced()
 +            );
-+            if (displayInChat && !respawnConfig.isSamePosition(this.respawnConfig)) {
-+                this.sendSystemMessage(SPAWN_SET_MESSAGE);
++            if (event.willNotifyPlayer() && event.getNotification() != null) {
++                this.sendSystemMessage(io.papermc.paper.adventure.PaperAdventure.asVanilla(event.getNotification()));
 +            }
          }
  
