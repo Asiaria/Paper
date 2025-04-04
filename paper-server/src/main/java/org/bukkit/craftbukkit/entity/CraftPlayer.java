@@ -7,7 +7,6 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.io.BaseEncoding;
 import com.mojang.authlib.GameProfile;
 import com.mojang.datafixers.util.Pair;
-import io.netty.buffer.Unpooled;
 import io.papermc.paper.FeatureHooks;
 import io.papermc.paper.configuration.GlobalConfiguration;
 import io.papermc.paper.entity.LookAnchor;
@@ -162,10 +161,10 @@ import org.bukkit.craftbukkit.CraftWorld;
 import org.bukkit.craftbukkit.CraftWorldBorder;
 import org.bukkit.craftbukkit.advancement.CraftAdvancement;
 import org.bukkit.craftbukkit.advancement.CraftAdvancementProgress;
-import org.bukkit.craftbukkit.block.CraftBlockEntityState;
-import org.bukkit.craftbukkit.block.CraftBlockState;
-import org.bukkit.craftbukkit.block.CraftSign;
-import org.bukkit.craftbukkit.block.data.CraftBlockData;
+import org.bukkit.craftbukkit.block.state.CraftBlockEntityState;
+import org.bukkit.craftbukkit.block.state.CraftBlockState;
+import org.bukkit.craftbukkit.block.state.CraftSign;
+import org.bukkit.craftbukkit.block.CraftBlockData;
 import org.bukkit.craftbukkit.conversations.ConversationTracker;
 import org.bukkit.craftbukkit.event.CraftEventFactory;
 import org.bukkit.craftbukkit.inventory.CraftItemStack;
@@ -2440,7 +2439,7 @@ public class CraftPlayer extends CraftHumanEntity implements Player {
     }
 
     private void sendCustomPayload(ResourceLocation id, byte[] message) {
-        ClientboundCustomPayloadPacket packet = new ClientboundCustomPayloadPacket(new DiscardedPayload(id, Unpooled.wrappedBuffer(message)));
+        ClientboundCustomPayloadPacket packet = new ClientboundCustomPayloadPacket(new DiscardedPayload(id, message));
         this.getHandle().connection.send(packet);
     }
 
