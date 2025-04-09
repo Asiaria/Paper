@@ -4,15 +4,11 @@
 # builds a paperclip jar to be updated in the body
 # of the PR relating to this action.
 
-name: Build Paper
 on:
-  push:
-  pull_request:
-    types:
-      - opened
-      - reopened
-      - synchronize
-      - labeled
+  workflow_dispatch:
+    branches:
+      - main
+      - update/1.21.5
 
 jobs:
   build:
